@@ -1,0 +1,322 @@
+---
+title: "EDA"
+format: html
+toc: TRUE
+---
+
+```{r}
+#| include: FALSE
+
+library(tidyverse)
+```
+
+Read in file
+
+```{r}
+diabetes <- read_csv(file = "diabetes_binary_health_indicators_BRFSS2015.csv")
+```
+
+```{r}
+diabetes
+```
+
+According to the [documentation](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/) of the dataset in kaggle:
+
+- Diabetes_binary: 0 = no diabetes, 1 = prediabetes or diabetes
+- Binary fields indicating 1 for presence or 0 for absence of the specified condition 
+    + HighBP, HighChol, Stroke, HeartDiseaseorAttack
+    + DiffWalk: difficulty walking or climbing stairs
+- Binary fields that need additional description to understand what it is representing
+    + CholCheck: Cholesterol check in 5 years?
+    + Smoker: Have you smoked at least 100 cigarettes in your entire lifetime?
+    + PhysActivity: physical activity in the past 30 days - not including job
+    + Fruits: Consume fruit 1 or more times per day
+    + Veggies: Consume veggies 1 or more times per day
+    + HeavyAlcoholConsump: Adult men >= 14 drinks per week, Adult women >= 7 drinks per week
+    + AnyHealthcare: Has any kind of healthcare/insurance coverage
+    + NoDocbcCost: Any time in the last 12 months respondent needed to see a doctor, but did not due to cost?
+- Numeric fields
+    + BMI
+    + MentHlth: days of poor mental health in the last 30 days
+    + PhysHlth: days of physicial illness or injury in the last 30 days
+- Numeric fields, but represent levels. Documentation provided a link to the CDC codebook [here](https://www.cdc.gov/brfss/annual_data/2015/pdf/codebook15_llcp.pdf).
+    + GenHlth: self-rating of personal health from 1 = excellent to 5 = poor
+    + Age: 1 = 18-24, 2 = 25-29, 3 = 30-34, 4 = 35-39, 5 = 40-44, 6 = 45-49, 7 = 50-54, 8 = 55-59, 9 = 60-64, 10 = 65-69, 11 = 70-74, 12 = 75-79, 13 = 80+
+    + Education: 1 = Never attended, or only kindergarten, 2 = Grades 1-8 (Elementary), 3 = Grades 9-11 (some high school), 4 = Grades 12 or GED (High school graduate), 5 = College 1-3 years (Some college or technical school), 6 = College 4 years or more (College graduate)
+    + Income: 1 = Less than $10,000, 2 = $10,000-14,999, 3 = $15,000-19,999, 4 = $20,000-24,999, 5 = $25,000-34,999, 6 = $35,000-$49,999, 7 = $50,000-74,999, 8 = $75,000+
+    + Sex: 0 = Female, 1 = Male
+
+
+```{r}
+psych::describe(diabetes)
+```
+
+- The max number for BMI looks kind of surprising, at 98. Since BMI > 30 is obese, I think it makes sense to look at the distribution of the values for this variable to see if it looks reasonable for a sample that should somewhat represent the general population. The median of 27 and relatively low standard deviation of 6.61 show it's most likely the really high values are outliers, but it would be good to get a more thorough look at summary statistics.
+- All other values appear consistent with what the documentation describes. There are a lot of binary variables, and then there are a collection of variables with coded numeric values that need to be translated to a descriptive label.
+
+### Data Cleaning
+
+Recast data columns
+
+```{r}
+diabetes <- diabetes |>
+  mutate(Diabetes_binary = as.factor(Diabetes_binary),
+         HighBP = as.factor(HighBP),
+         HighChol = as.factor(HighChol),
+         CholCheck = as.factor(CholCheck),
+         Smoker = as.factor(Smoker),
+         Stroke = as.factor(Stroke),
+         HeartDiseaseorAttack = as.factor(HeartDiseaseorAttack),
+         PhysActivity = as.factor(PhysActivity),
+         Fruits = as.factor(Fruits),
+         Veggies = as.factor(Veggies),
+         HvyAlcoholConsump = as.factor(HvyAlcoholConsump),
+         AnyHealthcare = as.factor(AnyHealthcare),
+         NoDocbcCost = as.factor(NoDocbcCost),
+         DiffWalk = as.factor(DiffWalk),
+         GenHlth = factor(GenHlth,
+                          levels = 1:5,
+                          labels = c("Excellent", "Very Good", "Good", "Fair", "Poor")),
+         Sex = factor(Sex, levels = 0:1, labels = c("Female", "Male")),
+         Age = factor(Age,
+                      levels = 1:13,
+                      labels = c("18 to 24", "25 to 29", "30 to 34", "35 to 39", "40 to 44", 
+                                 "45 to 49", "50 to 54", "55 to 59", "60 to 64", "65 to 69", 
+                                 "70 to 74", "75 to 79", "80 and over")),
+         Education = factor(Education,
+                            levels = 1:6,
+                            labels = c("Never attended/Only Kindergarten", "Elementary", 
+                                       "Some high school", "High school graduate", 
+                                       "Some college/tech school", "College graduate")),
+         Income = factor(Income,
+                         levels = 1:8,
+                         labels = c("Less than $10,000", "$10,000 to $14,999", "$15,000 to $19,999", 
+                                    "$20,000 to $24,999", "$25,000 to $34,999", "$35,000 to $49,999",
+                                    "$50,000 to $74,999", "$75,000 or greater"))
+         )
+```
+
+Make sure the factors that had coded values changed to descriptive ones look right
+
+```{r}
+diabetes |>
+  group_by(Sex) |>
+  summarize(count = n())
+```
+
+```{r}
+diabetes |>
+  group_by(Age) |>
+  summarize(count = n())
+```
+
+```{r}
+diabetes |>
+  group_by(GenHlth) |>
+  summarize(count = n())
+```
+
+```{r}
+diabetes |>
+  group_by(Education) |>
+  summarize(count = n())
+```
+
+```{r}
+diabetes |>
+  group_by(Income) |>
+  summarize(count = n())
+```
+
+Check for missing values
+
+```{r}
+colSums(is.na(diabetes))
+```
+### Summary Statistics
+
+Going to look at the five number summary for BMI
+```{r}
+diabetes |>
+  group_by(Diabetes_binary) |>
+  summarize(min = min(BMI),
+            q1 = quantile(BMI, probs = 0.25),
+            median = median(BMI),
+            q3 = quantile(BMI, probs = 0.75),
+            max = max(BMI))
+```
+
+This looks reasonable, but I'll still do a density plot to make sure. Mainly to make sure that the values in the lower 25th and the upper 75th percentiles aren't all grouped at the extremes, but instead spread out a bit. If everything above 35 or so are all 98's for instance, I'd be concerned that 98 is actually a coded value for something rather than a true value (e.g. what if the true values are capped at 35, and anything exceeding it was coded as 98). If they're spread out, then I'd be more comfortable assuming they're valid outliers.
+   
+   
+```{r}
+diabetes |>
+  group_by(Age, Diabetes_binary) |>
+  summarize(across(where(is.numeric),
+            mean,
+            .names = "mean_{col}"))
+
+```
+
+
+#### Correlation to Diabetes status
+
+```{r}
+
+# see if there are correlations between Diabetes status and all other columns
+correlation <- diabetes |>
+  lapply(as.numeric) |>
+  as.data.frame() |>
+  summarise(across(everything(), 
+                   \(x) list(cor.test(x, as.numeric(diabetes$Diabetes_binary))))) 
+
+# transform the correlation statistics from list-column to a flat numeric column
+corr_col <- correlation |>
+  map(1) |>                 # access first element (a list) of each list-column
+  map("estimate") |>        # pull just the estimate element for each inner list
+  bind_rows()               # compress into a simple column
+
+tibble(Variable = names(correlation)) |>
+  bind_cols(corr_col) |>
+  filter(abs(cor) > 0.02, cor < 1.0) |>
+  arrange(desc(abs(cor)))
+  
+```
+
+Might be good to focus on the top 5 variables in the above list as predictors. These variables are consistent with the fact that diabetes is associated with heart disease, as discussed in the [documentation](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/data) for the dataset. Difficulty walking may be related to neuropathy, which is also a complication of diabetes, I think related to blood flow, which is compromised by diabetes. Problems with circulation can also impact general health by reducing the effectiveness of the immune response (immune cells will have a harder time reaching sites of infection and damage if there are issues with blood flow). Therefore having some relationship between GenHlth and diabetes status is reasonable.
+
+Look at the correlations between those 5 predictors and all other variables to see if they have associations with other variables that might also be interesting to look at.
+
+```{r}
+correlation_2 <- diabetes |>
+  map(as.numeric) |>
+  as_tibble() |>
+  cor()
+
+# just look at top 5
+correlation_2[,c("GenHlth", "HighBP", "DiffWalk", "BMI", "HighChol")]
+```
+
+Nothing particularly highly correlated, just some weak associations between those "top 5" variables already identified, plus some association with GenHlth and DiffWalk/PhysHlth/Ment, and also some very weak correlation with heart attack history and the "top 5".
+
+#### Contingency Tables
+
+Using the above correlations as a guide, look at contingency tables of the correlation values that are the farthest from 0 (although none are particularly high).
+
+```{r}
+cont_GenHlth <- diabetes |>
+  group_by(GenHlth, Diabetes_binary) |>
+  summarize(count = n()) |>
+  pivot_wider(names_from = Diabetes_binary, 
+              values_from = count, 
+              names_prefix = "Diabetes_") |>
+  mutate(total = Diabetes_0 + Diabetes_1,
+         Diabetes_0_pct = Diabetes_0 / total,
+         Diabetes_1_pct = Diabetes_1 / total)
+
+cont_GenHlth
+```
+
+```{r}
+cont_HighBP <- diabetes |>
+  group_by(HighBP, Diabetes_binary) |>
+  summarize(count = n()) |>
+  pivot_wider(names_from = Diabetes_binary, 
+              values_from = count, 
+              names_prefix = "Diabetes_") |>
+  mutate(total = Diabetes_0 + Diabetes_1,
+         Diabetes_0_pct = Diabetes_0 / total,
+         Diabetes_1_pct = Diabetes_1 / total)
+
+cont_HighBP
+```
+
+```{r}
+cont_DiffWalk <- diabetes |>
+  group_by(DiffWalk, Diabetes_binary) |>
+  summarize(count = n()) |>
+  pivot_wider(names_from = Diabetes_binary, 
+              values_from = count, 
+              names_prefix = "Diabetes_") |>
+  mutate(total = Diabetes_0 + Diabetes_1,
+         Diabetes_0_pct = Diabetes_0 / total,
+         Diabetes_1_pct = Diabetes_1 / total)
+
+cont_DiffWalk
+```
+
+```{r}
+cont_BMI <- diabetes |>
+  group_by(Diabetes_binary) |>
+  summarize(count = n(),
+            mean_BMI = mean(BMI))
+
+cont_BMI
+```
+
+```{r}
+cont_HighChol <- diabetes |>
+  group_by(HighChol, Diabetes_binary) |>
+  summarize(count = n()) |>
+  pivot_wider(names_from = Diabetes_binary, 
+              values_from = count, 
+              names_prefix = "Diabetes_") |>
+  mutate(total = Diabetes_0 + Diabetes_1,
+         Diabetes_0_pct = Diabetes_0 / total,
+         Diabetes_1_pct = Diabetes_1 / total)
+
+cont_HighChol
+```
+
+### Plots
+
+Histogram for 
+
+```{r}
+g <- ggplot(data = diabetes, aes(x = as.numeric(GenHlth)))
+g + geom_histogram(aes(fill = Diabetes_binary, alpha = 0.5))
+
+```
+
+
+```{r}
+g <- ggplot(data = diabetes, aes(x = PhysHlth, y = BMI)) 
+
+g + geom_point(aes(color = Diabetes_binary), position = "jitter")
+
+# diabetes |>
+#   select(where(is.numeric))
+```
+
+Well that looks insane. Lol.
+
+BMI seems kind of off
+```{r}
+g <- ggplot(data = diabetes, aes(x = Diabetes_binary, y = BMI, fill = Diabetes_binary))
+
+g + geom_boxplot()
+```
+
+```{r}
+g <- ggplot(data = diabetes, aes(x = BMI, fill = Diabetes_binary))
+
+g + geom_density(alpha = 0.5) +
+  geom_vline(aes(xintercept = median(BMI[Diabetes_binary == 0])), 
+             color = "darkgreen", 
+             linetype = "dashed") +
+  geom_vline(aes(xintercept = median(BMI[Diabetes_binary == 1])), 
+             color = "navy", 
+             linetype = "dashed") +
+  scale_fill_manual(values = c("paleturquoise", "peachpuff")) +
+  labs(x = "BMI", y = "Proportion")
+```
+
+ 
+```{r}
+diabetes |>
+  select(where(is.numeric))
+
+```
+
+
+[Go to the Modeling Page](Modeling.html)
