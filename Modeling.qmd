@@ -3,13 +3,14 @@ title: "Modeling"
 format: html
 ---
 
-
 ```{r}
 #| include: false
 
 # Make data available for modeling (will not be displayed in rendered page)
 
+# libraries
 library(tidyverse)
+library(tidymodels)
 
 # read in data file 
 diabetes <- read_csv(file = "diabetes_binary_health_indicators_BRFSS2015.csv")
@@ -53,7 +54,122 @@ diabetes <- diabetes |>
 
 ```
 
+## Introduction
+
+Hmmmmm.....
+
+## Setup
+
+Isolate data set variables to just the ones needed for the models. I've decided to go with the top 5 variables that have the highest correlations with the response variable, plus the days of Physical Health challenges.
+
+*Actually might not need to do this. Just list the variables in the recipe.*
+
 ```{r}
-diabetes
+# diabetes_subset <- diabetes |>
+#   select(Diabetes_binary, GenHlth, HighBP, HighChol, DiffWalk, BMI, PhysHlth)
+```
+
+
+Split the data, with 70% training to 30% testing
+
+```{r}
+set.seed(42)
+
+diabetes_split <- initial_split(diabetes, prop = 0.7)
+diabetes_train <- training(diabetes_split)
+diabetes_test <- testing(diabetes_split)
+```
+
+Set up CV folds
+
+```{r}
+diabetes_CV_folds <- vfold_cv(diabetes_train, 5)
+```
+
+### Recipe
+
+```{r}
+tree_rec <- recipe(Diabetes_binary ~ GenHlth + HighBP + HighChol + DiffWalk + BMI + PhysHlth,
+                   data = diabetes_train) |>
+  step_normalize(all_numeric()) |>
+  step_dummy(GenHlth, HighBP, HighChol, DiffWalk)
+
+tree_rec |>
+  prep(diabetes_train) |>
+  bake(diabetes_train)
+```
+
+## Classification Tree
+
+Describe classification trees here.
+
+### Set up Model and Worflow
+
+Model for classification tree, with tuning parameters
+
+```{r}
+tree_mod <- decision_tree(tree_depth = tune(),
+                          min_n = 10,
+                          cost_complexity = tune()) |>
+  set_engine("rpart") |>
+  set_mode("classification")
+```
+
+Worflow
+
+```{r}
+tree_wkf <- workflow() |>
+  add_recipe(tree_rec) |>
+  add_model(tree_mod)
+```
+
+### Tuning parameters
+
+Set up a tuning grid
+
+```{r}
+tree_grid <- grid_regular(cost_complexity(),
+                          tree_depth(),
+                          levels = c(10, 5))
+```
+
+Run tuning on the specified grid
+
+```{r}
+#| label: tune-grid
+#| cache: true
+
+tree_fits <- tree_wkf |>
+  tune_grid(resamples = diabetes_CV_folds,
+            grid = tree_grid,
+            metrics = metric_set(accuracy, mn_log_loss))
+```
+
+
+```{r}
+tree_best_params <- select_best(tree_fits, metric = "mn_log_loss")
+
+tree_best_params
+```
+
+Refit on the training set
+
+```{r}
+tree_final_fit <- tree_wkf |>
+  finalize_workflow(tree_best_params) |>
+  last_fit(diabetes_split, metrics = metric_set(accuracy, mn_log_loss))
+
+tree_final_fit |>
+  collect_metrics()
+```
+
+### Final Model
+
+```{r}
+tree_final_model <- extract_workflow(tree_final_fit)
+
+tree_final_model |>
+  extract_fit_engine() |>
+  rpart.plot::rpart.plot(roundint = FALSE)
 ```
 

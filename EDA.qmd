@@ -10,6 +10,10 @@ toc: TRUE
 library(tidyverse)
 ```
 
+## Introduction
+
+Hmmmm.
+
 Read in file
 
 ```{r}
@@ -38,7 +42,7 @@ According to the [documentation](https://www.kaggle.com/datasets/alexteboul/diab
 - Numeric fields
     + BMI
     + MentHlth: days of poor mental health in the last 30 days
-    + PhysHlth: days of physicial illness or injury in the last 30 days
+    + PhysHlth: days of physical illness or injury in the last 30 days
 - Numeric fields, but represent levels. Documentation provided a link to the CDC codebook [here](https://www.cdc.gov/brfss/annual_data/2015/pdf/codebook15_llcp.pdf).
     + GenHlth: self-rating of personal health from 1 = excellent to 5 = poor
     + Age: 1 = 18-24, 2 = 25-29, 3 = 30-34, 4 = 35-39, 5 = 40-44, 6 = 45-49, 7 = 50-54, 8 = 55-59, 9 = 60-64, 10 = 65-69, 11 = 70-74, 12 = 75-79, 13 = 80+
@@ -270,32 +274,56 @@ cont_HighChol
 
 ### Plots
 
-Histogram for 
+Bar chart showing how a higher proportion of respondents reporting Good, Fair, or Poor health have a higher rate of diabetes/prediabetes than respondents reporting Very Good or Excellent health.
 
 ```{r}
-g <- ggplot(data = diabetes, aes(x = as.numeric(GenHlth)))
-g + geom_histogram(aes(fill = Diabetes_binary, alpha = 0.5))
+g <- ggplot(data = diabetes, aes(x = GenHlth))
+g + geom_bar(aes(fill = Diabetes_binary)) 
 
 ```
 
+Because there was some correlation between the diabetes status and GenHlth, and there was also correlation between GenHelth and the days of physical and/or mental health difficulties, I thought it would be cool to put them on a contour map to see if there were patterns for diabetes status vs Physical and Mental health days.
+
+When I initially plotted the original data points for physical and mental health days, which had a range of 0-30, there were many spots on the plot that were blank because there were no respondents that gave that particular combination of days. I set up a rounded column for each of these variables which rounded the number down to the nearest 5 (so 0-4 = 0, 5-9 = 5, 10-14 = 10, etc.). 
+
+I also added in new column just for the plot which gives the proportion in each of those combinations had diabetes or prediabetes. This was used as the z-value for the plot. 
 
 ```{r}
-g <- ggplot(data = diabetes, aes(x = PhysHlth, y = BMI)) 
+# note: Diabetes_binary is converted to character first since it's a factor, and converting directly to numeric will cause the number to take on its factor level value (i.e. it would change 0 and 1 to 1 and 2)
+diabetes_rollup <- diabetes |>
+  mutate(PhysHlth_rnd = floor(PhysHlth/5)*5,
+         MentHlth_rnd = floor(MentHlth/5)*5) |>
+  group_by(PhysHlth_rnd, MentHlth_rnd) |>
+  summarise(Diabetes_prop = sum(as.numeric(as.character(Diabetes_binary)))/n())
 
-g + geom_point(aes(color = Diabetes_binary), position = "jitter")
+h <- ggplot(data = diabetes_rollup, aes(x = PhysHlth_rnd, y = MentHlth_rnd)) 
+h + geom_contour_filled(aes(z = Diabetes_prop)) +
+  labs(x = "Days with Physical Health Difficulties",
+       y = "Days with Mental Health Difficulties",
+       fill = "Proportion \nwith diabetes/ \nprediabetes") 
 
-# diabetes |>
-#   select(where(is.numeric))
 ```
 
-Well that looks insane. Lol.
+This shows a cool pattern where the more days that a person reported poor health days, the higher the proportion of diabetes/prediabetes. This effect looks more related to physical health issues when there are fewer than 10-15 days with those types of issues, but as the number of days gets higher, the people with more days of mental health struggles start to have higher rates of diabetes/prediabetes. Anecdotally, this seems consistent with the assumption that a person with these conditions who reports many days of the month with physical health burdens may start to struggle with mental health as well.
 
-BMI seems kind of off
+
+```{r}
+diabetes |>
+  distinct(PhysHlth, MentHlth) |>
+  arrange(PhysHlth, MentHlth) |>
+  mutate(PhysHlth_rnd = floor(PhysHlth/5)*5,
+         Mentlth_rnd = floor(MentHlth/5)*5)
+```
+
+
+Boxplot for BMI to see the distribution of values
+
 ```{r}
 g <- ggplot(data = diabetes, aes(x = Diabetes_binary, y = BMI, fill = Diabetes_binary))
 
 g + geom_boxplot()
 ```
+Interesting to note that the median BMI is higher in the Has Prediabetes/Diabetes group than the other. But both groups have a large number of BMI's outside the middle 50%, which is interesting.
 
 ```{r}
 g <- ggplot(data = diabetes, aes(x = BMI, fill = Diabetes_binary))
@@ -311,12 +339,9 @@ g + geom_density(alpha = 0.5) +
   labs(x = "BMI", y = "Proportion")
 ```
 
+Density plot provides another view showing that the prediabetes/diabetes group has higher BMI on average, and we can also see that although there's a long tail on the right side, there aren't a huge number of points in the extremes relative to the size of the data set.
  
-```{r}
-diabetes |>
-  select(where(is.numeric))
 
-```
 
 
 [Go to the Modeling Page](Modeling.html)
