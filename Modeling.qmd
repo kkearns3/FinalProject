@@ -103,7 +103,7 @@ tree_rec |>
 
 Describe classification trees here.
 
-### Set up Model and Worflow
+### Set up Model and Workflow
 
 Model for classification tree, with tuning parameters
 
@@ -115,7 +115,7 @@ tree_mod <- decision_tree(tree_depth = tune(),
   set_mode("classification")
 ```
 
-Worflow
+Workflow
 
 ```{r}
 tree_wkf <- workflow() |>
@@ -172,4 +172,74 @@ tree_final_model |>
   extract_fit_engine() |>
   rpart.plot::rpart.plot(roundint = FALSE)
 ```
+
+## Random Forest
+
+Info about random forest here
+
+### Set up Model and Workflow
+
+```{r}
+# model specifications
+rf_model <- rand_forest(mtry = tune()) |>
+  set_engine("ranger") |>
+  set_mode("classification")
+
+# workflow using same recipe already set up
+rf_wkf <- workflow() |>
+  add_recipe(tree_rec) |>
+  add_model(rf_model)
+```
+
+### Tuning parameters
+
+Tune on a grid with 10 values
+
+```{r}
+#| label: rf-tune-grid
+#| cache: true
+
+rf_fit <- rf_wkf |>
+  tune_grid(resamples = diabetes_CV_folds,
+            grid = 10,
+            metrics = metric_set(accuracy, mn_log_loss))
+```
+
+```{r}
+rf_best_params <- rf_fit |>
+  select_best(metric = "mn_log_loss")
+
+rf_best_params
+```
+
+### Final Model
+
+Finalize the workflow
+
+```{r}
+rf_final_fit <- rf_wkf |>
+  finalize_workflow(rf_best_params) |>
+  last_fit(diabetes_split, metrics = metric_set(accuracy, mn_log_loss))
+
+```
+
+
+## Compare Models
+
+Compare the log loss for both models
+
+```{r}
+rf_metrics <- rf_final_fit |>
+  collect_metrics() |>
+  bind_cols(method = rep("Random Forest", 2)) 
+
+tree_metrics <- tree_final_fit |>
+  collect_metrics() |>
+  bind_cols(method = rep("Classification Tree", 2)) 
+
+rf_metrics |>
+  bind_rows(tree_metrics)
+```
+
+The accuracy of each model is roughly the same, but Random Forest has a marginally better log loss, so this one is the overall winner.
 
