@@ -1,7 +1,8 @@
+# This file is for setting up things needed for the plumber.R file to get the API working
+
 # libraries
 library(tidyverse)
 library(tidymodels)
-library(plumber)
 set.seed(42)
 
 # read in data
@@ -105,42 +106,19 @@ rf_wkf <- workflow() |>
 rf_fit_full <- rf_wkf |>
   fit(diabetes)
 
-#------ Endpoints ------
+# save model for later use
+saveRDS(rf_fit_full, file = "rf_fit_model.rda")
 
-# 1) pred endpoint - take in 6 predictors, with default values
-
-#* Return a prediction for diabetes status based on 6 predictors
-#* @param pred1 BMI
-#* @param pred2 PhysHlth
-#* @param pred3 HighBP
-#* @param pred4 HighChol
-#* @param pred5 DiffWalk 
-#* @param pred6 GenHlth
-
-function(pred1 = 28.4, pred2 = 4.24, pred3 = 0, pred4 = 0, pred5 = 0, pred6 = "Very Good") {
-  
-}
-
-
-  # convert character fields to numeric where necessary
-
-# # test
-# default_values[1,] <- list(35, 5, "1", "1", "0", "Poor")
-
+rf_fit_model <- readRDS("rf_fit_model.rda")
 
 # predict - need to put the input values (or default values) in as the new_data
 rf_fit_full |>
   predict(new_data = default_values)
 
+# save the confusion matrix (a tad long-running)
+rf_conf_mat <- conf_mat(diabetes |> mutate(estimate = rf_fit_model |> 
+                                             predict(diabetes) |> pull()),
+                        Diabetes_binary,
+                        estimate)
 
-
-# example function calls using the pred endpoint
-# 1) 
-# 2)
-# 3)
-
-# info
-
-
-# confusion
-
+saveRDS(rf_conf_mat, file = "rf_conf_matrix.rda")
