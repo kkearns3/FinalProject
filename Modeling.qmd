@@ -54,6 +54,13 @@ diabetes <- diabetes |>
 
 ```
 
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Start time: ", start_time, "\n")
+```
+
 ## Introduction
 
 Using a subset of variables from the [Diabetes Health Indicators Dataset](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/), two types of tree-based models will now be trained on a training set using 5-fold CV. Training data will be used to assess the log-loss of a classification tree model and a random forest model. The best parameters from each will be selected and then fit on the test set to determine which model is best. That final model will then be fit to the entire dataset, and an API will be set up with three endpoints. The first endpoint will return a prediction of diabetes status based on the input parameters; the second endpoint will provide my name and the github URL; and the third will show a plot of the confusion matrix for the final model.
@@ -92,6 +99,13 @@ tree_rec |>
   bake(diabetes_train)
 ```
 
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Start classification tree: ", start_time, "\n")
+```
+
 ## Classification Tree
 
 A classification tree is a supervised learning model that attempts to predict the value of a categorical response variable based on the values of one or more predictor variables. It does this by partitioning the predictor space into different branches, ultimately arriving at a prediction for the response variable. These branches are created using recursive binary splitting, which determines the optimal split for the current node only. The best split is determined by minimizing the squared error loss evaluated for each potential value of the predictors. Since it does not consider potential future splits, this can result in the tree missing out on a better match down the line that could have led to more accurate predictions. However, the classification tree is easy to understand, and is an effective and flexible model for situations where the data does not conform well to a line or plane.  
@@ -126,6 +140,13 @@ tree_grid <- grid_regular(cost_complexity(),
                           levels = c(10, 5))
 ```
 
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Start tuning: ", start_time, "\n")
+```
+
 Run tuning on the specified grid
 
 ```{r}
@@ -144,6 +165,13 @@ Get the best parameters
 tree_best_params <- select_best(tree_fits, metric = "mn_log_loss")
 
 tree_best_params
+```
+
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Start tree fit: ", start_time, "\n")
 ```
 
 Refit on the training set
@@ -167,6 +195,13 @@ tree_final_model |>
   rpart.plot::rpart.plot(roundint = FALSE)
 ```
 
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Class tree done: ", start_time, "\n")
+```
+
 ## Random Forest
 
 A random forest model is a supervised learning ensemble method that utilizes bootstrapping to generate many single trees to predict a response variable based on the values of one or more predictor variables. Bootstrapping is a method of resampling the data with replacement; in a random forest model, those samples are then used to fit many trees, and the best prediction across all trees is chosen. For regression trees, the best prediction is the average of all predictions, and for classification trees, the best prediction is the most common one. In a random forest model, only a random subset of predictors is considered for each split of a single tree. This makes the different trees less correlated with each other, which has the potential to improve the overall accuracy of the prediction by reducing the variance between the predictions of the single trees.
@@ -185,6 +220,13 @@ rf_wkf <- workflow() |>
   add_model(rf_model)
 ```
 
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Start tuning on random forest grid: ", start_time, "\n")
+```
+
 ### Tuning parameters
 
 Tune on a grid with 10 values
@@ -199,6 +241,13 @@ rf_fit <- rf_wkf |>
             metrics = metric_set(accuracy, mn_log_loss))
 ```
 
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("RF tuning done: ", start_time, "\n")
+```
+
 Select best parameters
 
 ```{r}
@@ -206,6 +255,13 @@ rf_best_params <- rf_fit |>
   select_best(metric = "mn_log_loss")
 
 rf_best_params
+```
+
+```{r}
+#| include: false
+
+start_time <- as.character(as_datetime(Sys.time()))
+cat("Finalize workflow start: ", start_time, "\n")
 ```
 
 ### Final Model
@@ -279,4 +335,9 @@ rf_conf_mat <- conf_mat(diabetes |> mutate(estimate = rf_fit_model |>
 saveRDS(rf_conf_mat, file = "rf_conf_matrix.rda")
 ```
 
+```{r}
+#| include: false
 
+start_time <- as.character(as_datetime(Sys.time()))
+cat("End time: ", start_time, "\n")
+```
