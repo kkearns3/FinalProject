@@ -12,7 +12,10 @@ library(tidyverse)
 
 ## Introduction
 
-Hmmmm.
+This project utilizes the [Diabetes Health Indicators Dataset](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/), which was sourced from the CDC's Behavioral Risk Factor Surveillance System survey from the year 2015. The dataset contains a collection of health indicators, along with a binary field indicating diabetes status; a value of 1 means the respondent has diabetes or prediabetes, and a value of 0 means he or she does not. The EDA in this file was performed with the goal of identifying a subset of variables that can be used as predictors for two tree-based models. I end up choosing two numeric predictors, BMI and PhysHlth. BMI is body mass index, and PhysHlth is an integer between 0 and 30 that indicates how many days in the last 30 days that the respondent experienced illness or injury. I choose one categorical predictor, GenHlth, in which the respondent rates their own general health on a scale from 1 for excellent through 5 for poor. The final three predictors I choose are binary, with values of 1 or 0 indicating the presence or absence (respectively) of the specified condition. These variables are HighBP (high blood pressure), HighChol (high cholesterol), and DiffWalk (difficulty walking). 
+
+
+## Data
 
 Read in file
 
@@ -24,7 +27,7 @@ diabetes <- read_csv(file = "diabetes_binary_health_indicators_BRFSS2015.csv")
 diabetes
 ```
 
-According to the [documentation](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/) of the dataset in kaggle:
+According to the documentation of the dataset in kaggle:
 
 - Diabetes_binary: 0 = no diabetes, 1 = prediabetes or diabetes
 - Binary fields indicating 1 for presence or 0 for absence of the specified condition 
@@ -55,7 +58,7 @@ According to the [documentation](https://www.kaggle.com/datasets/alexteboul/diab
 psych::describe(diabetes)
 ```
 
-- The max number for BMI looks kind of surprising, at 98. Since BMI > 30 is obese, I think it makes sense to look at the distribution of the values for this variable to see if it looks reasonable for a sample that should somewhat represent the general population. The median of 27 and relatively low standard deviation of 6.61 show it's most likely the really high values are outliers, but it would be good to get a more thorough look at summary statistics.
+- The max number for BMI looks kind of surprising, at 98. Since BMI of greater than or equal to 30 is obese, I think it makes sense to look at the distribution of the values for this variable to see if it looks reasonable for a sample that should somewhat represent the general population. The median of 27 and relatively low standard deviation of 6.61 show it's most likely the really high values are outliers, but it would be good to get a more thorough look at summary statistics.
 - All other values appear consistent with what the documentation describes. There are a lot of binary variables, and then there are a collection of variables with coded numeric values that need to be translated to a descriptive label.
 
 ### Data Cleaning
@@ -94,8 +97,9 @@ diabetes <- diabetes |>
                                        "Some college/tech school", "College graduate")),
          Income = factor(Income,
                          levels = 1:8,
-                         labels = c("Less than $10,000", "$10,000 to $14,999", "$15,000 to $19,999", 
-                                    "$20,000 to $24,999", "$25,000 to $34,999", "$35,000 to $49,999",
+                         labels = c("Less than $10,000", "$10,000 to $14,999", 
+                                    "$15,000 to $19,999", "$20,000 to $24,999", 
+                                    "$25,000 to $34,999", "$35,000 to $49,999",
                                     "$50,000 to $74,999", "$75,000 or greater"))
          )
 ```
@@ -163,7 +167,7 @@ diabetes |>
 ```
 
 
-#### Correlation to Diabetes status
+#### Correlation to Diabetes Status
 
 ```{r}
 
@@ -187,9 +191,9 @@ tibble(Variable = names(correlation)) |>
   
 ```
 
-Might be good to focus on the top 5 variables in the above list as predictors. These variables are consistent with the fact that diabetes is associated with heart disease, as discussed in the [documentation](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/data) for the dataset. Difficulty walking may be related to neuropathy, which is also a complication of diabetes, I think related to blood flow, which is compromised by diabetes. Problems with circulation can also impact general health by reducing the effectiveness of the immune response (immune cells will have a harder time reaching sites of infection and damage if there are issues with blood flow). Therefore having some relationship between GenHlth and diabetes status is reasonable.
+Might be good to focus on the top 5 variables in the above list as predictors. These variables are consistent with the fact that diabetes is associated with heart disease, as discussed in the [documentation](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/data) for the dataset. Difficulty walking may be related to neuropathy, which is also a complication of diabetes. Problems with circulation also occur in diabetics, and can also impact general health by reducing the effectiveness of the immune response (immune cells will have a harder time reaching sites of infection and damage if there are issues with blood flow). Therefore having some relationship between GenHlth and diabetes status is reasonable.
 
-Look at the correlations between those 5 predictors and all other variables to see if they have associations with other variables that might also be interesting to look at.
+I'll look at the correlations between those 5 predictors and all other variables to see if they have associations with other variables that might also be interesting to look at.
 
 ```{r}
 correlation_2 <- diabetes |>
@@ -205,10 +209,10 @@ Nothing particularly highly correlated, just some weak associations between thos
 
 #### Contingency Tables
 
-Using the above correlations as a guide, look at contingency tables of the correlation values that are the farthest from 0 (although none are particularly high).
+Using the above correlations as a guide, I will look at contingency tables of the correlation values that are the farthest from 0 (although none are particularly high).
 
 ```{r}
-cont_GenHlth <- diabetes |>
+diabetes |>
   group_by(GenHlth, Diabetes_binary) |>
   summarize(count = n()) |>
   pivot_wider(names_from = Diabetes_binary, 
@@ -217,12 +221,10 @@ cont_GenHlth <- diabetes |>
   mutate(total = Diabetes_0 + Diabetes_1,
          Diabetes_0_pct = Diabetes_0 / total,
          Diabetes_1_pct = Diabetes_1 / total)
-
-cont_GenHlth
 ```
 
 ```{r}
-cont_HighBP <- diabetes |>
+diabetes |>
   group_by(HighBP, Diabetes_binary) |>
   summarize(count = n()) |>
   pivot_wider(names_from = Diabetes_binary, 
@@ -231,12 +233,10 @@ cont_HighBP <- diabetes |>
   mutate(total = Diabetes_0 + Diabetes_1,
          Diabetes_0_pct = Diabetes_0 / total,
          Diabetes_1_pct = Diabetes_1 / total)
-
-cont_HighBP
 ```
 
 ```{r}
-cont_DiffWalk <- diabetes |>
+diabetes |>
   group_by(DiffWalk, Diabetes_binary) |>
   summarize(count = n()) |>
   pivot_wider(names_from = Diabetes_binary, 
@@ -245,21 +245,17 @@ cont_DiffWalk <- diabetes |>
   mutate(total = Diabetes_0 + Diabetes_1,
          Diabetes_0_pct = Diabetes_0 / total,
          Diabetes_1_pct = Diabetes_1 / total)
-
-cont_DiffWalk
 ```
 
 ```{r}
-cont_BMI <- diabetes |>
+diabetes |>
   group_by(Diabetes_binary) |>
   summarize(count = n(),
             mean_BMI = mean(BMI))
-
-cont_BMI
 ```
 
 ```{r}
-cont_HighChol <- diabetes |>
+diabetes |>
   group_by(HighChol, Diabetes_binary) |>
   summarize(count = n()) |>
   pivot_wider(names_from = Diabetes_binary, 
@@ -268,13 +264,13 @@ cont_HighChol <- diabetes |>
   mutate(total = Diabetes_0 + Diabetes_1,
          Diabetes_0_pct = Diabetes_0 / total,
          Diabetes_1_pct = Diabetes_1 / total)
-
-cont_HighChol
 ```
 
 ### Plots
 
-Bar chart showing how a higher proportion of respondents reporting Good, Fair, or Poor health have a higher rate of diabetes/prediabetes than respondents reporting Very Good or Excellent health.
+#### Bar Chart
+
+Here is a bar chart showing how a higher proportion of respondents reporting Good, Fair, or Poor health have a higher rate of diabetes/prediabetes than respondents reporting Very Good or Excellent health.
 
 ```{r}
 g <- ggplot(data = diabetes, aes(x = GenHlth))
@@ -282,14 +278,14 @@ g + geom_bar(aes(fill = Diabetes_binary))
 
 ```
 
-Because there was some correlation between the diabetes status and GenHlth, and there was also correlation between GenHelth and the days of physical and/or mental health difficulties, I thought it would be cool to put them on a contour map to see if there were patterns for diabetes status vs Physical and Mental health days.
+Because there was some correlation between the diabetes status and GenHlth, and there was also correlation between GenHlth and the days of physical and/or mental health difficulties, I thought it would be cool to put them on a contour map to see if there were patterns for diabetes status vs Physical and Mental health days.
 
 When I initially plotted the original data points for physical and mental health days, which had a range of 0-30, there were many spots on the plot that were blank because there were no respondents that gave that particular combination of days. I set up a rounded column for each of these variables which rounded the number down to the nearest 5 (so 0-4 = 0, 5-9 = 5, 10-14 = 10, etc.). 
 
-I also added in new column just for the plot which gives the proportion in each of those combinations had diabetes or prediabetes. This was used as the z-value for the plot. 
+I also added in a new column just for the plot which gives the proportion in each of those combinations had diabetes or prediabetes. This was used as the z-value for the plot. 
 
 ```{r}
-# note: Diabetes_binary is converted to character first since it's a factor, and converting directly to numeric will cause the number to take on its factor level value (i.e. it would change 0 and 1 to 1 and 2)
+# note: Diabetes_binary is converted to character first since it's a factor, and I want to make sure to sum up the original values of 0 and 1 and not the factor levels.
 diabetes_rollup <- diabetes |>
   mutate(PhysHlth_rnd = floor(PhysHlth/5)*5,
          MentHlth_rnd = floor(MentHlth/5)*5) |>
@@ -304,17 +300,10 @@ h + geom_contour_filled(aes(z = Diabetes_prop)) +
 
 ```
 
-This shows a cool pattern where the more days that a person reported poor health days, the higher the proportion of diabetes/prediabetes. This effect looks more related to physical health issues when there are fewer than 10-15 days with those types of issues, but as the number of days gets higher, the people with more days of mental health struggles start to have higher rates of diabetes/prediabetes. Anecdotally, this seems consistent with the assumption that a person with these conditions who reports many days of the month with physical health burdens may start to struggle with mental health as well.
+This shows a cool pattern where the more days that a person reported sick or injured days, the higher the proportion of diabetes/prediabetes. This effect looks more related to physical health issues when there are fewer than 10-15 days with those types of issues, but as the number of days gets higher, the people with more days of mental health struggles start to have higher rates of diabetes/prediabetes. Anecdotally, this seems consistent with the assumption that a person with these conditions who reports many days of the month with physical health burdens may start to struggle with mental health as well.
 
 
-```{r}
-diabetes |>
-  distinct(PhysHlth, MentHlth) |>
-  arrange(PhysHlth, MentHlth) |>
-  mutate(PhysHlth_rnd = floor(PhysHlth/5)*5,
-         Mentlth_rnd = floor(MentHlth/5)*5)
-```
-
+#### Boxplot 
 
 Boxplot for BMI to see the distribution of values
 
@@ -323,7 +312,9 @@ g <- ggplot(data = diabetes, aes(x = Diabetes_binary, y = BMI, fill = Diabetes_b
 
 g + geom_boxplot()
 ```
-Interesting to note that the median BMI is higher in the Has Prediabetes/Diabetes group than the other. But both groups have a large number of BMI's outside the middle 50%, which is interesting.
+It's interesting to note that the median BMI is higher in the Has Prediabetes/Diabetes group than the other. But both groups have a large number of BMI's outside the middle 50%, which is interesting.
+
+#### Density Plot
 
 ```{r}
 g <- ggplot(data = diabetes, aes(x = BMI, fill = Diabetes_binary))
@@ -341,7 +332,8 @@ g + geom_density(alpha = 0.5) +
 
 Density plot provides another view showing that the prediabetes/diabetes group has higher BMI on average, and we can also see that although there's a long tail on the right side, there aren't a huge number of points in the extremes relative to the size of the data set.
  
+### To the Models
 
-
+With the EDA complete, and predictors selected, we can now fit the models.
 
 [Go to the Modeling Page](Modeling.html)

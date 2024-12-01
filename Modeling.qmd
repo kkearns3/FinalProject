@@ -56,21 +56,11 @@ diabetes <- diabetes |>
 
 ## Introduction
 
-Hmmmmm.....
+Using a subset of variables from the [Diabetes Health Indicators Dataset](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/), two types of tree-based models will now be trained on a training set using 5-fold CV. Training data will be used to assess the log-loss of a classification tree model and a random forest model. The best parameters from each will be selected and then fit on the test set to determine which model is best. That final model will then be fit to the entire dataset, and an API will be set up with three endpoints. The first endpoint will return a prediction of diabetes status based on the input parameters; the second endpoint will provide my name and the github URL; and the third will show a plot of the confusion matrix for the final model.
 
 ## Setup
 
-Isolate data set variables to just the ones needed for the models. I've decided to go with the top 5 variables that have the highest correlations with the response variable, plus the days of Physical Health challenges.
-
-*Actually might not need to do this. Just list the variables in the recipe.*
-
-```{r}
-# diabetes_subset <- diabetes |>
-#   select(Diabetes_binary, GenHlth, HighBP, HighChol, DiffWalk, BMI, PhysHlth)
-```
-
-
-Split the data, with 70% training to 30% testing
+Data needs to be split, with 70% training and 30% testing
 
 ```{r}
 set.seed(42)
@@ -88,8 +78,11 @@ diabetes_CV_folds <- vfold_cv(diabetes_train, 5)
 
 ### Recipe
 
+Numeric predictors will be standardized, and dummy variables will be created for the binary and categorial variables.
+
 ```{r}
-tree_rec <- recipe(Diabetes_binary ~ GenHlth + HighBP + HighChol + DiffWalk + BMI + PhysHlth,
+tree_rec <- recipe(Diabetes_binary ~ GenHlth + HighBP + HighChol + DiffWalk + 
+                     BMI + PhysHlth,
                    data = diabetes_train) |>
   step_normalize(all_numeric()) |>
   step_dummy(GenHlth, HighBP, HighChol, DiffWalk)
@@ -101,7 +94,7 @@ tree_rec |>
 
 ## Classification Tree
 
-Describe classification trees here.
+A classification tree is a supervised learning model that attempts to predict the value of a categorical response variable based on the values of one or more predictor variables. It does this by partitioning the predictor space into different branches, ultimately arriving at a prediction for the response variable. These branches are created using recursive binary splitting, which determines the optimal split for the current node only. The best split is determined by minimizing the squared error loss evaluated for each potential value of the predictors. Since it does not consider potential future splits, this can result in the tree missing out on a better match down the line that could have led to more accurate predictions. However, the classification tree is easy to understand, and is an effective and flexible model for situations where the data does not conform well to a line or plane.  
 
 ### Set up Model and Workflow
 
@@ -145,6 +138,7 @@ tree_fits <- tree_wkf |>
             metrics = metric_set(accuracy, mn_log_loss))
 ```
 
+Get the best parameters
 
 ```{r}
 tree_best_params <- select_best(tree_fits, metric = "mn_log_loss")
@@ -175,7 +169,7 @@ tree_final_model |>
 
 ## Random Forest
 
-Info about random forest here
+A random forest model is a supervised learning ensemble method that utilizes bootstrapping to generate many single trees to predict a response variable based on the values of one or more predictor variables. Bootstrapping is a method of resampling the data with replacement; in a random forest model, those samples are then used to fit many trees, and the best prediction across all trees is chosen. For regression trees, the best prediction is the average of all predictions, and for classification trees, the best prediction is the most common one. In a random forest model, only a random subset of predictors is considered for each split of a single tree. This makes the different trees less correlated with each other, which has the potential to improve the overall accuracy of the prediction by reducing the variance between the predictions of the single trees.
 
 ### Set up Model and Workflow
 
@@ -204,6 +198,8 @@ rf_fit <- rf_wkf |>
             grid = 10,
             metrics = metric_set(accuracy, mn_log_loss))
 ```
+
+Select best parameters
 
 ```{r}
 rf_best_params <- rf_fit |>
@@ -242,4 +238,45 @@ rf_metrics |>
 ```
 
 The accuracy of each model is roughly the same, but Random Forest has a marginally better log loss, so this one is the overall winner.
+
+## Fit Best Model to Entire Data
+
+Fit the best model to the entire data set, for use by the API.
+
+```{r}
+#| eval: false
+
+# model specifications (using the optimal mtry value found during tuning)
+rf_model <- rand_forest(mtry = 4) |>
+  set_engine("ranger") |>
+  set_mode("classification")
+
+# workflow 
+rf_wkf <- workflow() |>
+  add_recipe(tree_rec) |>
+  add_model(rf_model)
+
+# fit best model on entire data set
+rf_fit_full <- rf_wkf |>
+  fit(diabetes)
+
+# save model for later use
+saveRDS(rf_fit_full, file = "rf_fit_model.rda")
+
+```
+
+Also saved the confusion matrix, since it's a tad long-running
+
+```{r}
+#| eval: false
+
+# save the confusion matrix
+rf_conf_mat <- conf_mat(diabetes |> mutate(estimate = rf_fit_model |> 
+                                             predict(diabetes) |> pull()),
+                        Diabetes_binary,
+                        estimate)
+
+saveRDS(rf_conf_mat, file = "rf_conf_matrix.rda")
+```
+
 

@@ -1,12 +1,12 @@
-#
+# Fitting the best model and defining the API
 
 # libraries
 library(tidyverse)
 library(tidymodels)
 library(plumber)
+set.seed(42)
 
-# read in model fitted on the full data
-rf_fit_model <- readRDS("rf_fit_model.rda")
+#--------------Fit the model--------------
 
 # read in data
 diabetes <- read_csv(file = "diabetes_binary_health_indicators_BRFSS2015.csv")
@@ -75,6 +75,11 @@ default_values <- default_values |>
                 .names = "{col}"))
 
 
+# read in model fitted on the full data (see EDA.html for how this model was fit)
+rf_fit_model <- readRDS("rf_fit_model.rda")
+
+#------------API Setup----------------------
+
 #* @apiTitle Random Forest Model API
 #* @apiDescription Run random forest model for specified parameters, plot 
 
@@ -84,7 +89,7 @@ default_values <- default_values |>
 
 #* Return a prediction for diabetes status based on 6 predictors
 #* @param BMI BMI
-#* @param PhysHlth Days of poor health within last 30 days (numeric 0-30)
+#* @param PhysHlth Days of illness or injury within last 30 days (numeric 0-30)
 #* @param HighBP High Blood Pressure (0 = false or 1 = true) 
 #* @param HighChol High Cholesterol (0 = false or 1 = true) 
 #* @param DiffWalk Difficulty Walking (0 = false or 1 = true) 
