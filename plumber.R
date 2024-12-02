@@ -126,7 +126,7 @@ function(BMI = 28.4, PhysHlth = 4.24, HighBP = 0, HighChol = 0, DiffWalk = 0, Ge
 #* Info for the site
 #* @get /info
 function() {
-  list("Katy Kearns", "github URL")
+  list("Katy Kearns", "https://kkearns3.github.io/FinalProject/EDA.html")
 }
 
 # 3) confusion - return a plot of the confusion matrix
